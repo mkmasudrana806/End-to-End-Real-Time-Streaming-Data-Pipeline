@@ -39,5 +39,25 @@ services:
     container_name: kafka-producer
     depends_on:
       - broker
+
+  spark:
+    build: ./spark
+    container_name: spark
+    depends_on:
+      - broker
+    environment:
+      HOME: /opt/spark
+      SPARK_LOCAL_DIRS: /opt/spark/tmp
+      SPARK_SUBMIT_OPTS: >
+        -Divy.home=/opt/spark/.ivy2
+        -Divy.cache.dir=/opt/spark/.ivy2/cache
+        -Dhadoop.user.name=spark
+    volumes:
+      - ./spark/streaming_jobs:/opt/spark-apps
+      - spark-ivy-cache:/opt/spark/.ivy2
+
+
 volumes:
   postgres-data:
+  spark-ivy-cache:
+

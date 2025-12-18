@@ -1,5 +1,6 @@
 from kafka import KafkaProducer
 from datetime import datetime, timezone
+from kafka.errors import NoBrokersAvailable
 import json
 import random
 import uuid
@@ -7,15 +8,27 @@ import time
 
 
 
-kafa_broker = "broker:9092"
-topic_name = "user_events"
+KAFKA_BROKER = "broker:9092"
+TOPIC_NAME = "user_events"
 
 event_types = ["add_to_cart", "purchase", "product_view"]
-product_category = ["books", "electronics", "fasion", "technology"]
+product_category = ["books", "electronics", "fashion", "technology"]
 
-# initialize kafka producer
-producer = KafkaProducer( bootstrap_servers=kafa_broker, value_serializer=lambda v: json.dumps(v).encode("utf-8"), key_serializer=lambda k: k.encode("utf-8"), retries=5, acks="all" )
-
+def create_producer():
+    while True:
+        try:
+            producer = KafkaProducer(
+                bootstrap_servers=KAFKA_BROKER,
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                key_serializer=lambda k: k.encode("utf-8"),
+                retries=5,
+                acks="all"
+            )
+            print("Kafka producer connected successfully")
+            return producer
+        except NoBrokersAvailable:
+            print("Kafka not ready yet. Retrying in 5 seconds...")
+            time.sleep(5)
 
 def generate_event():
     event_type = random.choice(event_types)
@@ -33,11 +46,13 @@ def generate_event():
     }
     return message
 
-
+producer = create_producer()
 
 while True:
     message = generate_event()
-    producer.send(topic=topic_name, value=message, key=message["product_id"])
+    producer.send(topic=TOPIC_NAME, value=message, key=message["product_id"])
     
     print(f"Sent event: ", message)
     time.sleep(1)
+
+
