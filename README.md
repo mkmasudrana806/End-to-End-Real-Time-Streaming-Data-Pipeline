@@ -22,11 +22,11 @@ This project demonstrates **production-oriented data engineering practices**, in
 
 ## Tech Stack
 
-- *Event Producer*: kafka-python
-- *Message Broker*: Apache Kafka (KRaft mode)
-- *Stream Processing*: Apache Spark Structured Streaming
-- *Database*: PostgreSQL
-- *Containerization*: Docker & Docker Compose
+- **Event Producer**: kafka-python
+- **Message Broker**: Apache Kafka (KRaft mode)
+- **Stream Processing**: Apache Spark Structured Streaming
+- **Database**: PostgreSQL
+- **Containerization**: Docker & Docker Compose
 
 ---
 
