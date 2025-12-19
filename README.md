@@ -17,18 +17,16 @@ This project demonstrates **production-oriented data engineering practices**, in
 
 ## Architecture Diagram
 
-
+![Architecture Diagram](https://github.com/mkmasudrana806/End-to-End-Real-Time-Streaming-Data-Pipeline/blob/main/Real%20Time%20Streaming%20Architecture%20Diagram.png)
 ---
 
 ## Tech Stack
 
-| Component | Technology |
-|--------|-----------|
-Event Producer | Python (kafka-python) |
-Message Broker | Apache Kafka (KRaft mode) |
-Stream Processing | Apache Spark Structured Streaming |
-Database | PostgreSQL |
-Containerization | Docker & Docker Compose |
+- *Event Producer*: kafka-python
+- *Message Broker*: Apache Kafka (KRaft mode)
+- *Stream Processing*: Apache Spark Structured Streaming
+- *Database*: PostgreSQL
+- *Containerization*: Docker & Docker Compose
 
 ---
 
@@ -153,7 +151,7 @@ Make sure the following are installed on your system:
 - Open Command Prompt
   
 ```bash
-git clone [<this-repository-url>](https://github.com/mkmasudrana806/End-to-End-Real-Time-Streaming-Data-Pipeline.git)
+git clone [https://github.com/mkmasudrana806/End-to-End-Real-Time-Streaming-Data-Pipeline.git
 cd End-to-End-Real-Time-Streaming-Data-Pipeline
 ```
 
