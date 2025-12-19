@@ -1,17 +1,19 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json
+from pyspark.sql.functions import col, from_json, to_timestamp, window, sum as spark_sum, round as spark_round
 from pyspark.sql.types import (
     StructType, StructField, StringType, DoubleType
 )
 
+# Initialize Spark session
 spark = (
     SparkSession.builder
-    .appName("KafkaReadTest")
+    .appName("KafkaStreamAnalysis")
     .getOrCreate()
 )
 
 spark.sparkContext.setLogLevel("WARN")
 
+# defien the schema for the incoming kafka messages
 schema = StructType([
     StructField("event_id", StringType()),
     StructField("event_type", StringType()),
@@ -22,26 +24,122 @@ schema = StructType([
     StructField("event_time", StringType())
 ])
 
-df = (
+# read the Kafka raw stream
+raw_df = (
     spark.readStream
     .format("kafka")
     .option("kafka.bootstrap.servers", "broker:9092")
     .option("subscribe", "user_events")
-    .option("startingOffsets", "latest")
+    .option("startingOffsets", "earliest")
     .load()
 )
 
+# parse the JSON messages and extract fields
 parsed_df = (
-    df.selectExpr("CAST(value AS STRING)")
-    .select(from_json(col("value"), schema).alias("data"))
+    raw_df
+    .select(from_json(col("value").cast("string"), schema).alias("data"))
     .select("data.*")
 )
 
-query = (
-    parsed_df.writeStream
-    .format("console")
+
+
+# event_time as timestamp and watermarking
+base_df = (
+    parsed_df
+    .withColumn("event_time_ts", to_timestamp("event_time"))
+    .withWatermark("event_time_ts", "2 minutes")
+)
+
+# ========== product view window per 30 minutes ============
+# which products are getting the most views
+
+product_view_df = (
+    base_df
+    .filter(col("event_type") == "product_view")
+    .groupBy(
+        window(col("event_time_ts"), "30 minutes"),
+        col("product_id")
+    )
+    .count()
+    .select(
+        col("window.start").alias("window_start"),
+        col("window.end").alias("window_end"),
+        col("product_id"),
+        col("count").alias("view_count")
+    )
+)
+
+product_view_query = (
+    product_view_df
+    .writeStream
     .outputMode("append")
+    .format("console")
+    .option("truncate", "false")
+    .queryName("product_view_window")
     .start()
 )
 
-query.awaitTermination()
+
+# ========= category activity window per 5 minutes ==========
+# which category is most active based on all event types
+
+category_activity_df = (
+    base_df
+    .groupBy(
+        window(col("event_time_ts"), "5 minutes"),
+        col("category")
+    )
+    .count()
+    .select(
+        col("window.start").alias("window_start"),
+        col("window.end").alias("window_end"),
+        col("category"),
+        col("count").alias("event_count")
+    )
+)
+
+category_activity_query = (
+    category_activity_df
+    .writeStream
+    .outputMode("append")
+    .format("console")
+    .option("truncate", "false")
+    .queryName("category_activity_window")
+    .start()
+)
+
+
+# ======= category revenue window (5 minutes) ============
+# how much revenue generated per category
+
+category_revenue_df = (
+    base_df
+    .filter(col("event_type") == "purchase")
+    .groupBy(
+        window(col("event_time_ts"), "5 minutes"),
+        col("category")
+    )
+    .agg(
+        spark_round(spark_sum("price"), 2).alias("total_revenue")
+    )
+    .select(
+        col("window.start").alias("window_start"),
+        col("window.end").alias("window_end"),
+        col("category"),
+        col("total_revenue")
+    )
+)
+
+category_revenue_query = (
+    category_revenue_df
+    .writeStream
+    .outputMode("append")
+    .format("console")
+    .option("truncate", "false")
+    .queryName("category_revenue_window")
+    .start()
+)
+
+
+
+spark.streams.awaitAnyTermination()
