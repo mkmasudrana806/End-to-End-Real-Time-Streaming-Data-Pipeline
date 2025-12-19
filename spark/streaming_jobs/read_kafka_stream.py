@@ -50,6 +50,23 @@ base_df = (
     .withWatermark("event_time_ts", "2 minutes")
 )
 
+
+def write_to_postgres(df, epoch_id, table_name):
+    (
+        df.write
+        .mode("append")
+        .jdbc(
+            url="jdbc:postgresql://postgres:5432/airflow",
+            table=table_name,
+            properties={
+                "user": "airflow",
+                "password": "airflow",
+                "driver": "org.postgresql.Driver"
+            }
+        )
+    )
+
+
 # ========== product view window per 30 minutes ============
 # which products are getting the most views
 
@@ -69,15 +86,26 @@ product_view_df = (
     )
 )
 
+# uncomment it to see console output
+# product_view_query = (
+#     product_view_df
+#     .writeStream
+#     .outputMode("append")
+#     .format("console")
+#     .option("truncate", "false")
+#     .queryName("product_view_window")
+#     .start()
+# )
+
+
 product_view_query = (
     product_view_df
     .writeStream
+    .foreachBatch(lambda df, epoch: write_to_postgres(df, epoch, "product_view_window"))
     .outputMode("append")
-    .format("console")
-    .option("truncate", "false")
-    .queryName("product_view_window")
     .start()
 )
+
 
 
 # ========= category activity window per 5 minutes ==========
@@ -98,13 +126,22 @@ category_activity_df = (
     )
 )
 
+# uncomment it to see console output
+# category_activity_query = (
+#     category_activity_df
+#     .writeStream
+#     .outputMode("append")
+#     .format("console")
+#     .option("truncate", "false")
+#     .queryName("category_activity_window")
+#     .start()
+# )
+
 category_activity_query = (
     category_activity_df
     .writeStream
+    .foreachBatch(lambda df, epoch: write_to_postgres(df, epoch, "category_activity_window"))
     .outputMode("append")
-    .format("console")
-    .option("truncate", "false")
-    .queryName("category_activity_window")
     .start()
 )
 
@@ -130,16 +167,26 @@ category_revenue_df = (
     )
 )
 
+# uncomment it to see console output
+# category_revenue_query = (
+#     category_revenue_df
+#     .writeStream
+#     .outputMode("append")
+#     .format("console")
+#     .option("truncate", "false")
+#     .queryName("category_revenue_window")
+#     .start()
+# )
+
 category_revenue_query = (
     category_revenue_df
     .writeStream
+    .foreachBatch(lambda df, epoch: write_to_postgres(df, epoch, "category_revenue_window"))
     .outputMode("append")
-    .format("console")
-    .option("truncate", "false")
-    .queryName("category_revenue_window")
     .start()
 )
 
 
-
 spark.streams.awaitAnyTermination()
+
+# app run command: docker exec -it spark /opt/spark/bin/spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.0,org.postgresql:postgresql:42.7.3 /opt/spark-apps/read_kafka_stream.py
